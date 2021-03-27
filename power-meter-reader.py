@@ -10,11 +10,11 @@ import math
 
 DIALS = [
   #offset, clockwise
-  [0, True],
+  [-10, True],
   [0, False],
-  [0, True],
-  [0, False],
-  [0, True]
+  [-2, True],
+  [10, False],
+  [10, True]
 ]
 
 def clear_debug():
@@ -66,7 +66,7 @@ def read_dial(config, idx, img):
     blurred = cv2.GaussianBlur(gray, (5,5), 0)
     write_debug(blurred, f"blurred-{idx}")
 
-    edges = cv2.Canny(blurred, 50, 200)
+    edges = cv2.Canny(blurred, 50, 100)
     write_debug(edges, f"edges-{idx}")
 
     edge = find_hand_edge(edges)
@@ -99,11 +99,12 @@ if not os.path.exists(filename):
     print("Usage: python3 power-meter-reader.py <image>")
     exit(1)
 
-original = cv2.imread(filename)
+original_full = cv2.imread(filename)
+original = original_full[300:300+300,96:96+1020]
 write_debug(original, "original")
 
 originalSize = original.shape[:2]
-resizedSize = (int(originalSize[1] * 0.3), int(originalSize[0] * 0.3))
+resizedSize = (int(originalSize[1] * 1), int(originalSize[0] * 1))
 resized = cv2.resize(original, resizedSize)
 write_debug(resized, "resized")
 
@@ -113,7 +114,7 @@ write_debug(gray, "gray")
 blurred = cv2.GaussianBlur(gray, (5,5), 0)
 write_debug(blurred, "blurred")
 
-circles = cv2.HoughCircles(blurred, cv2.HOUGH_GRADIENT, 1, 20, np.array([]), 100, 43, 40, 70)
+circles = cv2.HoughCircles(blurred, cv2.HOUGH_GRADIENT, 1, 80, param1=65, param2=40, minRadius=70, maxRadius=130)
 
 dials = np.uint16(np.around(circles))[0,:]
 
@@ -122,7 +123,9 @@ result = ""
 
 for idx, dial in enumerate(sorted_dials):
     x,y,radius = dial
-    dial_img = resized[y-radius:y+radius,x-radius:x+radius].copy()
+    x1 = x - radius - 10 if x > radius - 10 else 0
+    y1 = y - radius - 10 if y > radius - 10 else 0
+    dial_img = resized[y1:y+radius+10,x1:x+radius+10].copy()
     value = read_dial(DIALS[idx], idx, dial_img)
     result += str(value)
     # draw the outer circle
